@@ -60,16 +60,14 @@ public class Controller {
 				long origId = Long.parseLong(accs.values().toArray()[2].toString());
 				long destId = Long.parseLong(accs.values().toArray()[1].toString());
 				Optional<Account> accOriOp = accountRepo.findById(origId);
-				Optional<Account> accDestOp = accountRepo.findById(destId);
 				
 				boolean accOrigExists = accOriOp.isPresent();
-				boolean accDestExists = accDestOp.isPresent();
 				
-				if(!accDestExists || !accOrigExists) {
+				if(!accOrigExists) {
 					return new ResponseEntity<>(0, HttpStatus.NOT_FOUND);
 				}
 				Account origAcc = accOriOp.get(); 		
-				Account destAcc = accDestOp.get();
+				Account destAcc = new Account(destId, 0);
 			
 				origAcc.setBalance(origAcc.getBalance()-amount);
 				accountRepo.save(origAcc);
