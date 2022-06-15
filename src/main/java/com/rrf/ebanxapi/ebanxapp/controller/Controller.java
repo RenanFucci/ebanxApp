@@ -42,8 +42,7 @@ public class Controller {
 			int amount = Integer.parseInt(accs.get("amount"));
 			
 			Optional<Account> accOp = accountRepo.findById(id);
-			boolean accExists = !accOp.isEmpty();
-
+			boolean accExists = accOp.isPresent();	
 			
 			if (!accExists && (type.contentEquals("withdraw"))) {
 				return new ResponseEntity<>(0, HttpStatus.NOT_FOUND);
@@ -63,8 +62,8 @@ public class Controller {
 				Optional<Account> accOriOp = accountRepo.findById(origId);
 				Optional<Account> accDestOp = accountRepo.findById(destId);
 				
-				boolean accOrigExists = !accOriOp.isEmpty();
-				boolean accDestExists = !accDestOp.isEmpty();
+				boolean accOrigExists = accOriOp.isPresent();
+				boolean accDestExists = accDestOp.isPresent();
 				
 				if(!accDestExists || !accOrigExists) {
 					return new ResponseEntity<>(0, HttpStatus.NOT_FOUND);
@@ -123,7 +122,7 @@ public class Controller {
 
 		Optional<Account> accOp = accountRepo.findById(Long.valueOf(account_id));
 
-		boolean accExists = !accOp.isEmpty();
+		boolean accExists = accOp.isPresent();
 		if (!accExists) {
 			return new ResponseEntity<>(0, HttpStatus.NOT_FOUND);
 		} else {
