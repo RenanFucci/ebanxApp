@@ -76,8 +76,7 @@ public class Controller {
 				accountRepo.save(destAcc);
 				
 				String originstr = accs.keySet().toArray()[2].toString().toLowerCase();
-				String destinationstr = accs.keySet().toArray()[1].toString().toLowerCase();
-				
+				String destinationstr = accs.keySet().toArray()[1].toString().toLowerCase();				
 				
 				HashMap<String, AccountDto> result = new HashMap<>();
 				result.put(originstr, new AccountDto(origAcc));
