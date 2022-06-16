@@ -3,9 +3,7 @@ package com.rrf.ebanxapi.ebanxapp.controller;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.rrf.ebanxapi.ebanxapp.model.Account;
 import com.rrf.ebanxapi.ebanxapp.model.dto.AccountDto;
+import com.rrf.ebanxapi.ebanxapp.model.form.EventForm;
 import com.rrf.ebanxapi.ebanxapp.repository.AccountRepository;
 
 @RestController
@@ -30,75 +29,73 @@ public class Controller {
 	}
 
 	@PostMapping(value = "/event")
-	public ResponseEntity<?> save(@RequestBody Map<String, String> req) {
+	public ResponseEntity<?> save(@RequestBody EventForm event) {
 		try {
-			// Solution I found if the request body had Upper or Lower case strings
-			Map<String, String> accs = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-			accs.putAll(req);			
+			String type = event.getType();			
 			
-			String orignOrDest = (accs.keySet().toArray()[1].toString()).toLowerCase();
-			String type = accs.get("type").toLowerCase();			
-			long id = Long.parseLong(accs.get(orignOrDest));
-			int amount = Integer.parseInt(accs.get("amount"));
+			long destination = event.getDestination()== null ? -1: Long.parseLong(event.getDestination());
+			long origin = event.getOrigin()== null ? -1: Long.parseLong(event.getOrigin());
+			int amount = event.getAmount();
 			
-			Optional<Account> accOp = accountRepo.findById(id);
-			boolean accExists = accOp.isPresent();	
+			Optional<Account> accOriOp = accountRepo.findById(origin);
+			Optional<Account> accDestOp = accountRepo.findById(destination);
 			
-			if (!accExists && (type.contentEquals("withdraw"))) {
+			boolean accOriExists = accOriOp.isPresent();
+			boolean accDestExists = accDestOp.isPresent();
+			HashMap<String, AccountDto> result = new HashMap<>();
+			
+			
+			
+			if (!accOriExists && (type.contentEquals("withdraw") || type.contentEquals("transfer"))) {
 				return new ResponseEntity<>(0, HttpStatus.NOT_FOUND);
 			}
-			else if (!accExists && type.contentEquals("deposit")) {
-				Account acc = new Account(id, amount);
+			
+			if (!accDestExists && type.contentEquals("deposit")) {
+				Account acc = new Account(destination, amount);
 				accountRepo.save(acc);
 				
-				
-				HashMap<String, AccountDto> result = new HashMap<>();
-				result.put(orignOrDest, new AccountDto(acc));
+				result.put(event.getDestinationName(), new AccountDto(acc));
 				return new ResponseEntity<>(result, HttpStatus.CREATED);
 			}
-			else if(type.contentEquals("transfer")){
-				long origId = Long.parseLong(accs.values().toArray()[2].toString());
-				long destId = Long.parseLong(accs.values().toArray()[1].toString());
-				Optional<Account> accOriOp = accountRepo.findById(origId);
+			
+			if (type.contentEquals("deposit")) {
+				Account acctmp = accDestOp.get();
 				
-				boolean accOrigExists = accOriOp.isPresent();
+				acctmp.setBalance(acctmp.getBalance()+amount);
+				accountRepo.save(acctmp);
 				
-				if(!accOrigExists) {
-					return new ResponseEntity<>(0, HttpStatus.NOT_FOUND);
-				}
+				result.put(event.getDestinationName(), new AccountDto(acctmp));
+				return new ResponseEntity<>(result, HttpStatus.CREATED);
+
+			} 
+			
+			if (type.contentEquals("withdraw")) {
+				Account acctmp =  accOriOp.get();			
+				acctmp.setBalance(acctmp.getBalance()-amount);
+				accountRepo.save(acctmp);
+				
+				result.put(event.getOriginName(), new AccountDto(acctmp));
+				return new ResponseEntity<>(result, HttpStatus.CREATED);
+			}
+
+			else {// transfer	
 				Account origAcc = accOriOp.get(); 		
-				Account destAcc = new Account(destId, 0);
+				Account destAcc = new Account(destination, 0);
 			
 				origAcc.setBalance(origAcc.getBalance()-amount);
 				accountRepo.save(origAcc);
 
 				destAcc.setBalance(destAcc.getBalance()+amount);
 				accountRepo.save(destAcc);
+								
+				result.put(event.getOriginName(), new AccountDto(origAcc));
+				result.put(event.getDestinationName(), new AccountDto(destAcc));
 				
-				String originstr = accs.keySet().toArray()[2].toString().toLowerCase();
-				String destinationstr = accs.keySet().toArray()[1].toString().toLowerCase();				
-				
-				HashMap<String, AccountDto> result = new HashMap<>();
-				result.put(originstr, new AccountDto(origAcc));
-				result.put(destinationstr, new AccountDto(destAcc));
-				
-				return new ResponseEntity<>(result, HttpStatus.CREATED);
-						
+				return new ResponseEntity<>(result, HttpStatus.CREATED);		
 			}
-			else {
-				Account acctmp = accOp.get();
-
-				if (type.contentEquals("deposit")) {
-					acctmp.setBalance(acctmp.getBalance()+amount);
-				} else if (type.contentEquals("withdraw")) {
-					acctmp.setBalance(acctmp.getBalance()-amount);
-				}
-				accountRepo.save(acctmp);
-				HashMap<String, AccountDto> result = new HashMap<>();
-				result.put(orignOrDest, new AccountDto(acctmp));
-				return new ResponseEntity<>(result, HttpStatus.CREATED);
-			}
+			
 		} catch (Exception e) {
+			e.printStackTrace();
 			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
